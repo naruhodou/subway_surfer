@@ -81,6 +81,8 @@ function main() {
   //const buffers
 
   var then = 0;
+  var rightPressed = false;
+  var leftPressed = false;
   // Draw the scene repeatedly
   function render(now) {
     // the constant
@@ -93,23 +95,41 @@ function main() {
     then = now;
     // console.log(deltaTime);
     drawScene(gl, programInfo, deltaTime);
-    $(document).ready(function(){
-      $(document).keyup(function(objEvent){
-        (objEvent) ? keycode = objEvent.keyCode : keycode = 0;
-        if(keycode == 37)
-        {
-          if(c.pos[0] > -track_length)
-            c.pos[0] -= deltaTime / 20;
-        }
-        else if(keycode == 39)
-        {
-          if(c.pos[0] < track_length)
-            c.pos[0] += deltaTime / 20;
-        }
-        else
-          c.keypress_timestamp = 0;
-        });
-      });
+    document.addEventListener('keyup', keyUpHandler, false);
+    document.addEventListener('keydown', keyDownHandler, false);
+    if(rightPressed && c.pos[0] < track_length)
+      c.pos[0] += 0.05;
+    if(leftPressed && c.pos[0] > -track_length)
+      c.pos[0] -= 0.05;
+    console.log(rightPressed, leftPressed);
+    function keyDownHandler(event) {
+      if(event.keyCode == 39) {
+        rightPressed = true;
+      }
+      else if(event.keyCode == 37) {
+        leftPressed = true;
+      }
+      if (event.keyCode == 32) {
+        spacePressed = true;
+      }
+      if (event.keyCode == 67) {
+        cPressed = true;
+      }
+    }
+    function keyUpHandler(event) {
+      if(event.keyCode == 39) {
+        rightPressed = false;
+      }
+      else if(event.keyCode == 37) {
+        leftPressed = false;
+      }
+      if (event.keyCode == 32) {
+        spacePressed = false;
+      }
+      if (event.keyCode == 67) {
+        cPressed = false;
+      }
+    }
 
     requestAnimationFrame(render);
 
