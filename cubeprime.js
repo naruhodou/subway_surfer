@@ -1,7 +1,7 @@
 /// <reference path="webgl.d.ts" />
 
 let cube = class {
-    constructor(gl, pos, [l, b, h], url) {
+    constructor(gl, pos, [l, b, h], url, ts) {
         this.positionBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
 
@@ -43,6 +43,8 @@ let cube = class {
         this.rotation = 0;
         this.vy = 0;
         this.ay = 10;
+        this.isdraw = true;
+        this.dim = [l, b, h];
         function loadTexture(gl, url) {
             const texture = gl.createTexture();
             gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -119,35 +121,35 @@ let cube = class {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.textureCoordBuffer);
         this.textureCoordinates = [
             // Front
-            1.0,  1.0,
-            0.0,  1.0,
+            ts,  ts,
+            0.0,  ts,
             0.0,  0.0,
-            1.0,  0.0,
+            ts,  0.0,
             // Back
-            1.0,  1.0,
-            0.0,  1.0,
+            ts,  ts,
+            0.0,  ts,
             0.0,  0.0,
-            1.0,  0.0,
+            ts,  0.0,
             // Top
-            1.0,  1.0,
-            0.0,  1.0,
+            ts,  ts,
+            0.0,  ts,
             0.0,  0.0,
-            1.0,  0.0,
+            ts,  0.0,
             // Bottom
-            1.0,  1.0,
-            0.0,  1.0,
+            ts,  ts,
+            0.0,  ts,
             0.0,  0.0,
-            1.0,  0.0,
+            ts,  0.0,
             // Right
-            1.0,  1.0,
-            0.0,  1.0,
+            ts,  ts,
+            0.0,  ts,
             0.0,  0.0,
-            1.0,  0.0,
+            ts,  0.0,
             // Left
-            1.0,  1.0,
-            0.0,  1.0,
+            ts,  ts,
+            0.0,  ts,
             0.0,  0.0,
-            1.0,  0.0,
+            ts,  0.0,
         ];
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.textureCoordinates),
         gl.STATIC_DRAW);
@@ -158,7 +160,7 @@ let cube = class {
             indices: this.indexBuffer,
         }
 
-    }
+    } 
 
     drawCube(gl, projectionMatrix, programInfo, deltaTime) {
         const modelViewMatrix = mat4.create();

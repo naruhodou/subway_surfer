@@ -16,7 +16,9 @@ function main() {
   
   track_length = 2.0;
   edge_length = 1.0;
-  track_depth = 50.0;
+  track_depth = 30.0;
+  sneaker_lim = 0;
+  var jump_limit = 1;
   var rightPressed = false;
   var leftPressed = false;
   var duck = false;
@@ -28,15 +30,21 @@ function main() {
   track_img = 'track.jpg'
   player_img = 'player.png'
   coin_img = 'coin1.png';
+  sneaker_img = 'sneakers.jpeg';
+  jetpack_img = 'jetpack.jpeg';
   wall_height = 10;
+  last_jetpack = 0;
   wall_depth = track_depth;
-  walls = [new cube(gl, [-3 * track_length / 2, wall_height / 2, -wall_depth / 2], [0.2, wall_height, wall_depth], wall_img),
-  new cube(gl, [+3 * track_length / 2, wall_height / 2, -wall_depth / 2], [0.2, wall_height, wall_depth], wall_img)];
-  c = new cube(gl, [0, edge_length / 2, -3], [edge_length, edge_length, 0.0001], player_img);
-  tracks = [new cube(gl, [0.0, -0.2, 0], [track_length, 0.2, track_depth], track_img), 
-  new cube(gl, [-track_length, -0.2, 0], [track_length, 0.2, track_depth], track_img), 
-  new cube(gl, [track_length, -0.2, 0], [track_length, 0.2, track_depth], track_img)];
-  coin = new cube(gl, [0, 0.1, -10], [0.2, 0.2, 0.2], coin_img);
+  walls = [new cube(gl, [-3 * track_length / 2, wall_height / 2, -wall_depth / 2], [0.2, wall_height, wall_depth], wall_img, 1),
+  new cube(gl, [+3 * track_length / 2, wall_height / 2, -wall_depth / 2], [0.2, wall_height, wall_depth], wall_img, 1)];
+  c = new cube(gl, [0, edge_length / 2, -3], [edge_length, edge_length, 0.0001], player_img, 1);
+  tracks = [new cube(gl, [0.0, -0.2, -track_depth / 2], [track_length, 0.2, track_depth], track_img, 1), 
+  new cube(gl, [-track_length, -0.2, -track_depth / 2], [track_length, 0.2, track_depth], track_img, 1), 
+  new cube(gl, [track_length, -0.2, -track_depth / 2], [track_length, 0.2, track_depth], track_img, 1)];
+  coin = new cube(gl, [0, 0.1, -10], [0.2, 0.2, 0.2], coin_img, 1);
+  sneaker = new cube(gl, [-track_length, 0.2, -70], [0.4, 0.4, 0.4], sneaker_img, 1);
+  jetpacks = [new cube(gl, [track_length, 0.2, -40], [0.4, 0.4, 0.4], jetpack_img, 1), 
+  new cube(gl, [0, 0.2, -100], [0.4, 0.4, 0.4], jetpack_img, 1)];
   // If we don't have a GL context, give up now
   
   if (!gl) {
@@ -89,10 +97,16 @@ function main() {
     },
   };
   
+
+  function detect_collision(a, b)
+  {
+    return (2 * Math.abs(a.pos[0] - b.pos[0]) < a.dim[0] + b.dim[0] &&
+     2 * Math.abs(a.pos[1] - b.pos[1]) < a.dim[1] + b.dim[1] && 
+     2 * Math.abs(a.pos[2] - b.pos[2]) < a.dim[2] + b.dim[2]);
+  }
   // Here's where we call the routine that builds all the
   // objects we'll be drawing.
   //const buffers
-  
   var then = 0;
   // Draw the scene repeatedly
   function render(now) {
@@ -109,6 +123,42 @@ function main() {
     const deltaTime = now - then;
     then = now;
     // console.log(deltaTime);
+
+    // sneaker
+    if(detect_collision(sneaker, c) === true)
+    {
+      sneaker.isdraw = false;
+      jump_limit = 2;
+      sneaker_lim = 0;
+    }
+    sneaker_lim += 1;
+    if(sneaker_lim == 600 && jump_limit == 2)
+    {
+      jump_limit = 1;
+    }
+
+    //jetpack logic
+    for(i = 0; i < 2; i++)
+    {
+      if(detect_collision(jetpacks[i], c))
+      {
+        last_jetpack = jetpacks[i].pos[2];
+        jetpacks[i].isdraw = false;
+        c.ay = 0;
+        break;
+      }
+    }
+    // console.log(c.pos[1]);
+    if(last_jetpack < 0 && Math.abs(c.pos[1] - edge_length / 2) < 1)
+    {
+      c.pos[1] += 0.05;
+    }
+    if(last_jetpack - c.pos[2] > 30 && last_jetpack < 0)
+    {
+      c.ay = 10;
+      last_jetpack = +0;
+    }
+    // console.log(c.ay);
     drawScene(gl, programInfo, deltaTime);
     document.addEventListener('keyup', keyUpHandler, false);
     document.addEventListener('keydown', keyDownHandler, false);
@@ -138,12 +188,18 @@ function main() {
 
     if(spacePressed)
     {
-      c.vy = Math.sqrt(2 * c.ay);
+      if(c.ay > 20)
+        c.ay -= 20;
+      if(Math.abs(c.pos[1] - edge_length / 2) < 0.000001)
+        c.vy = Math.sqrt(2 * c.ay * jump_limit);
     }
-    var final = c.vy - c.ay / 60;
-    var disp = (c.vy * c.vy - final * final) / (2 * c.ay);
-    c.pos[1] += disp;
-    c.vy = final;
+    if(c.ay != 0)
+    {
+      var final = c.vy - c.ay / 60;
+      var disp = (c.vy * c.vy - final * final) / (2 * c.ay);
+      c.pos[1] += disp;
+      c.vy = final;
+    }
     if(c.pos[1] < edge_length / 2)
       c.pos[1] = edge_length / 2;
     function keyDownHandler(event) {
@@ -243,8 +299,12 @@ function drawScene(gl, programInfo, deltaTime) {
   }
   for(i = 0; i < 2; i++)
     walls[i].drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
-
+  for(i = 0; i < 2; i++)
+    if(jetpacks[i].isdraw)
+      jetpacks[i].drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
   coin.drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
+  if(sneaker.isdraw)
+    sneaker.drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
   //tracks.drawCube(gl, projectionMatrix, programInfo, deltaTime);
 
 }
