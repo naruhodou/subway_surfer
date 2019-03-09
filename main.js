@@ -25,8 +25,9 @@ function main() {
   var start_duck = false;
   var keep_jumping = false;
   var spacePressed = false;
+  var tograyscale = 0;
   
-  wall_img = 'walls.jpeg';
+  wall_img = 'walls.jpg';
   track_img = 'track.jpg'
   player_img = 'player.png'
   coin_img = 'coin1.png';
@@ -75,6 +76,21 @@ function main() {
       gl_FragColor = texture2D(uSampler, vTextureCoord);
     }
   `;
+
+  const fsSource_grayscale = `
+    // varying lowp vec4 vColor;
+
+    varying mediump vec2 vTextureCoord;
+    uniform sampler2D uSampler;
+    precision mediump float;
+
+    void main(void) {
+      // gl_FragColor = vColor;
+      vec4 color = texture2D(uSampler, vTextureCoord);
+      float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+      gl_FragColor = vec4(vec3(gray), 1.0);
+    }
+  `;
   
   // Initialize a shader program; this is where all the lighting
   // for the vertices and so forth is established.
@@ -96,6 +112,25 @@ function main() {
       uSampler: gl.getUniformLocation(shaderProgram, 'uSampler'),
     },
   };
+
+
+  const shaderProgram_grayscale = initShaderProgram(gl, vsSource, fsSource_grayscale);
+
+  const programInfo_grayscale = {
+    program: shaderProgram_grayscale,
+    attribLocations: {
+      vertexPosition: gl.getAttribLocation(shaderProgram_grayscale, 'aVertexPosition'),
+      // vertexColor: gl.getAttribLocation(shaderProgram_grayscale, 'aVertexColor'),
+      
+      textureCoord: gl.getAttribLocation(shaderProgram_grayscale, 'aTextureCoord'),
+    },
+    uniformLocations: {
+      projectionMatrix: gl.getUniformLocation(shaderProgram_grayscale, 'uProjectionMatrix'),
+      modelViewMatrix: gl.getUniformLocation(shaderProgram_grayscale, 'uModelViewMatrix'),
+      
+      uSampler: gl.getUniformLocation(shaderProgram_grayscale, 'uSampler'),
+    },
+  };
   
 
   function detect_collision(a, b)
@@ -113,11 +148,13 @@ function main() {
     for(i = 0; i < 3; i++)
       tracks[i].pos[2] -= 0.05;
     c.pos[2] -= 0.05;
+    //wall movement
     if(c.pos[2] - wall_depth / 2 - 2 < walls[0].pos[2] - wall_depth / 2)
     {
       for(i = 0; i < 2; i++)
         walls[i].pos[2] -= wall_depth / 4;
     }
+    
     // console.log(c.pos)
     now *= 0.001;  // convert to seconds
     const deltaTime = now - then;
@@ -159,14 +196,17 @@ function main() {
       last_jetpack = +0;
     }
     // console.log(c.ay);
-    drawScene(gl, programInfo, deltaTime);
+    if(tograyscale === 0)
+      drawScene(gl, programInfo, deltaTime);
+    else
+      drawScene(gl, programInfo_grayscale, deltaTime);
     document.addEventListener('keyup', keyUpHandler, false);
     document.addEventListener('keydown', keyDownHandler, false);
     if(rightPressed && c.pos[0] < track_length)
       c.pos[0] += 0.05;
     if(leftPressed && c.pos[0] > -track_length)
       c.pos[0] -= 0.05;
-    if(duck && !start_duck)
+    if(duck && !start_duck && last_jetpack > -1)
     {
       if(Math.abs(c.pos[1] - edge_length / 2) < 0.000001)
       {
@@ -228,6 +268,10 @@ function main() {
       }
       if (event.keyCode == 40) {
         duck = false;
+      }
+      if(event.keyCode == 71)
+      {
+        tograyscale ^= 1;
       }
     }
     
