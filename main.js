@@ -13,20 +13,26 @@ function main() {
   
   const canvas = document.querySelector('#glcanvas');
   const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  
   track_length = 2.0;
   edge_length = 1.0;
   track_depth = 50.0;
   var rightPressed = false;
   var leftPressed = false;
-  wall_img = 'walls.jpg';
-  track_img = 'track.png'
+  var duck = false;
+  var start_duck = false;
+  var keep_jumping = false;
+  var spacePressed = false;
+  
+  wall_img = 'walls.jpeg';
+  track_img = 'track.jpg'
   player_img = 'player.png'
   coin_img = 'coin1.png';
   wall_height = 10;
   wall_depth = track_depth;
   walls = [new cube(gl, [-3 * track_length / 2, wall_height / 2, -wall_depth / 2], [0.2, wall_height, wall_depth], wall_img),
   new cube(gl, [+3 * track_length / 2, wall_height / 2, -wall_depth / 2], [0.2, wall_height, wall_depth], wall_img)];
-  c = new cube(gl, [0, edge_length / 2, -2], [edge_length, edge_length, 0.0001], player_img);
+  c = new cube(gl, [0, edge_length / 2, -3], [edge_length, edge_length, 0.0001], player_img);
   tracks = [new cube(gl, [0.0, -0.2, 0], [track_length, 0.2, track_depth], track_img), 
   new cube(gl, [-track_length, -0.2, 0], [track_length, 0.2, track_depth], track_img), 
   new cube(gl, [track_length, -0.2, 0], [track_length, 0.2, track_depth], track_img)];
@@ -93,10 +99,10 @@ function main() {
     for(i = 0; i < 3; i++)
       tracks[i].pos[2] -= 0.05;
     c.pos[2] -= 0.05;
-    if(c.pos[2] - wall_depth / 3 < walls[0].pos[2] - wall_depth / 2)
+    if(c.pos[2] - wall_depth / 2 - 2 < walls[0].pos[2] - wall_depth / 2)
     {
       for(i = 0; i < 2; i++)
-        walls[i].pos[2] -= wall_depth / 2;
+        walls[i].pos[2] -= wall_depth / 4;
     }
     // console.log(c.pos)
     now *= 0.001;  // convert to seconds
@@ -110,7 +116,36 @@ function main() {
       c.pos[0] += 0.05;
     if(leftPressed && c.pos[0] > -track_length)
       c.pos[0] -= 0.05;
-    console.log(rightPressed, leftPressed);
+    if(duck && !start_duck)
+    {
+      if(Math.abs(c.pos[1] - edge_length / 2) < 0.000001)
+      {
+        start_duck = true;
+        c.scaling[1] = 0.5;
+        c.pos[1] -= edge_length / 4;
+      }
+      if(c.ay < 20)
+        c.ay += 20;
+    }
+    else if(!duck && start_duck)
+    {
+      start_duck = false;
+      c.scaling[1] = 1;
+      c.pos[1] += edge_length / 4;
+      if(c.ay > 20)
+        c.ay -= 20;
+    }
+
+    if(spacePressed)
+    {
+      c.vy = Math.sqrt(2 * c.ay);
+    }
+    var final = c.vy - c.ay / 60;
+    var disp = (c.vy * c.vy - final * final) / (2 * c.ay);
+    c.pos[1] += disp;
+    c.vy = final;
+    if(c.pos[1] < edge_length / 2)
+      c.pos[1] = edge_length / 2;
     function keyDownHandler(event) {
       if(event.keyCode == 39) {
         rightPressed = true;
@@ -121,8 +156,8 @@ function main() {
       if (event.keyCode == 32) {
         spacePressed = true;
       }
-      if (event.keyCode == 67) {
-        cPressed = true;
+      if (event.keyCode == 40) {
+        duck = true;
       }
     }
     function keyUpHandler(event) {
@@ -135,8 +170,8 @@ function main() {
       if (event.keyCode == 32) {
         spacePressed = false;
       }
-      if (event.keyCode == 67) {
-        cPressed = false;
+      if (event.keyCode == 40) {
+        duck = false;
       }
     }
     
@@ -183,7 +218,7 @@ function drawScene(gl, programInfo, deltaTime) {
   // Set the drawing position to the "identity" point, which is
   // the center of the scene.
   var cameraMatrix = mat4.create();
-    mat4.translate(cameraMatrix, cameraMatrix, [0, c.pos[1] + 3, c.pos[2] + 5]);
+    mat4.translate(cameraMatrix, cameraMatrix, [0, edge_length / 2 + 3, c.pos[2] + 5]);
     var cameraPosition = [
       cameraMatrix[12],
       cameraMatrix[13],
@@ -192,7 +227,7 @@ function drawScene(gl, programInfo, deltaTime) {
 
     var up = [0, 1, 0];
     
-    mat4.lookAt(cameraMatrix, cameraPosition, [0, c.pos[1], c.pos[2]], up);
+    mat4.lookAt(cameraMatrix, cameraPosition, [0, edge_length / 2, c.pos[2]], up);
     
     var viewMatrix = cameraMatrix;//mat4.create();
     

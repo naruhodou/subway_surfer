@@ -39,8 +39,10 @@ let cube = class {
              l / 2, b / 2, h / 2,
              l / 2, -b / 2, h / 2,
         ];
-
+        this.scaling = [1, 1, 1];
         this.rotation = 0;
+        this.vy = 0;
+        this.ay = 10;
         function loadTexture(gl, url) {
             const texture = gl.createTexture();
             gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -167,12 +169,17 @@ let cube = class {
         );
         
         //this.rotation += Math.PI / (((Math.random()) % 100) + 50);
-
         mat4.rotate(modelViewMatrix,
             modelViewMatrix,
             this.rotation,
-            [0, 0, 0]);
+            [1, 0, 0]);
 
+        mat4.scale(
+            modelViewMatrix,
+            modelViewMatrix,
+            this.scaling
+        );
+        
         {
             const numComponents = 3;
             const type = gl.FLOAT;
