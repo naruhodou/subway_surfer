@@ -1,58 +1,60 @@
 var cubeRotation = 0.0;
 
-main();
 
 //
 // Start here
 //
 
+main();
 var c;
 var tracks;
 
 function main() {
-
-
+  
+  
   const canvas = document.querySelector('#glcanvas');
   const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
   track_length = 3.0
   edge_length = 1.0
-  track_depth = 200.0
-  c = new cube(gl, [0, edge_length / 2, -2], [edge_length, edge_length, edge_length]);
-  tracks = [new cube(gl, [0.0, -0.2, 0], [track_length, 0.2, track_depth]), 
-  new cube(gl, [-track_length, -0.2, 0], [track_length, 0.2, track_depth]), 
-  new cube(gl, [track_length, -0.2, 0], [track_length, 0.2, track_depth])];
-  coin = new cube(gl, [0, 0.1, -10], [0.2, 0.2, 0.2]);
+  track_depth = 20.0
+  var rightPressed = false;
+  var leftPressed = false;
+  wall_img = 'wall2.jpeg';
+  player_img = 'player.png'
+  coin_img = 'coin1.png';
+  c = new cube(gl, [0, edge_length / 2, -2], [edge_length, edge_length, 0.0001], player_img);
+  tracks = [new cube(gl, [0.0, -0.2, 0], [track_length, 0.2, track_depth], wall_img), 
+  new cube(gl, [-track_length, -0.2, 0], [track_length, 0.2, track_depth], wall_img), 
+  new cube(gl, [track_length, -0.2, 0], [track_length, 0.2, track_depth], wall_img)];
+  coin = new cube(gl, [0, 0.1, -10], [0.2, 0.2, 0.2], coin_img);
   // If we don't have a GL context, give up now
-
+  
   if (!gl) {
     alert('Unable to initialize WebGL. Your browser or machine may not support it.');
     return;
   }
-
+  
   // Vertex shader program
-
+  
   const vsSource = `
     attribute vec4 aVertexPosition;
-    attribute vec4 aVertexColor;
-
+    attribute vec2 aTextureCoord;
     uniform mat4 uModelViewMatrix;
     uniform mat4 uProjectionMatrix;
-
-    varying lowp vec4 vColor;
-
+    varying highp vec2 vTextureCoord;
     void main(void) {
       gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
-      vColor = aVertexColor;
+      vTextureCoord = aTextureCoord;
     }
   `;
 
   // Fragment shader program
 
   const fsSource = `
-    varying lowp vec4 vColor;
-
+    varying highp vec2 vTextureCoord;
+    uniform sampler2D uSampler;
     void main(void) {
-      gl_FragColor = vColor;
+      gl_FragColor = texture2D(uSampler, vTextureCoord);
     }
   `;
 
@@ -68,11 +70,12 @@ function main() {
     program: shaderProgram,
     attribLocations: {
       vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
-      vertexColor: gl.getAttribLocation(shaderProgram, 'aVertexColor'),
+      textureCoord: gl.getAttribLocation(shaderProgram, 'aTextureCoord'),
     },
     uniformLocations: {
       projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
       modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+      uSampler: gl.getUniformLocation(shaderProgram, 'uSampler'),
     },
   };
 
@@ -81,8 +84,6 @@ function main() {
   //const buffers
 
   var then = 0;
-  var rightPressed = false;
-  var leftPressed = false;
   // Draw the scene repeatedly
   function render(now) {
     // the constant
