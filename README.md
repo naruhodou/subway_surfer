@@ -1,2 +1,1 @@
-# subway_surfer
-Subway surfer game implemented using webgl.
+ Webgl-boilerplate for Graphics Spring 2019
