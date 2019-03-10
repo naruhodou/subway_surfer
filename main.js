@@ -29,6 +29,7 @@ function main() {
   var spacePressed = false;
   toggle_it = false;
   gameover_desu = false;
+  slowed = -1;
   
   wall_img = 'walls.jpg';
   track_img = 'track.jpg'
@@ -73,6 +74,10 @@ function main() {
   jetpacks = [new cube(gl, [track_length, 0.2, -40], [0.4, 0.4, 0.4], jetpack_img, 1), 
   new cube(gl, [0, 0.2, -100], [0.4, 0.4, 0.4], jetpack_img, 1)];
   police = new cube(gl, [c.pos[0], c.pos[1], c.pos[2] + 0.7], [edge_length, edge_length, 0.0001], police_img, 1);
+  
+  slow_obs = [new cube(gl, [-track_length, pole_ht / 2, -135], [0.2, pole_ht, 0.2], pole_img, 1), 
+  new cube(gl, [track_length, pole_ht / 2, -150], [0.2, pole_ht, 0.2], pole_img, 1)];
+  
   // If we don't have a GL context, give up now
   
   if (!gl) {
@@ -291,7 +296,7 @@ function main() {
       tracks[i].pos[2] -= 0.05;
     c.pos[2] -= 0.05;
     //police movement
-    police.pos[2] -= 0.04 + 1 / (police_se_bachke * 200);
+    police.pos[2] -= 0.04 + 1 / (police_se_bachke * 600);
     police.pos[1] = c.pos[1];
     police.pos[0] = c.pos[0];
     //wall movement
@@ -350,6 +355,20 @@ function main() {
     else
     {
       drawScene(gl, programInfo_grayscale, programInfo_flash_grayscale, deltaTime);
+    }
+    if(slowed >= 0)
+      console.log(police_se_bachke);
+    for(i = 0; i < slow_obs.length; i++)
+    {
+      if(detect_collision(slow_obs[i], c) && police_se_bachke <= 600 && slowed != i && slowed >= 0)
+        gameover_desu = true;
+      else if(detect_collision(slow_obs[i], c))
+      {
+        slowed = i;
+        police_se_bachke = 0;
+      }
+      else if(police_se_bachke > 600)
+        slowed = -1;
     }
     for(i = 0; i < jump_obs.length; i++)
     {
@@ -551,6 +570,11 @@ function drawScene(gl, programInfo, programInfo_flash, deltaTime) {
   }
   for(i = 0; i < jump_obs.length; i++)
     jump_obs[i].drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
+  
+  for(i = 0; i < slow_obs.length; i++)
+  {
+    slow_obs[i].drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
+  }
   if(police.isdraw)
     police.drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
   //tracks.drawCube(gl, projectionMatrix, programInfo, deltaTime);
