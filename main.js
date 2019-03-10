@@ -369,6 +369,8 @@ function main() {
     }
     document.addEventListener('keyup', keyUpHandler, false);
     document.addEventListener('keydown', keyDownHandler, false);
+    document.getElementById('my_audio').loop = true;
+    document.getElementById('my_audio').play();
     if(rightPressed && c.pos[0] < track_length)
       c.pos[0] += 0.05;
     if(leftPressed && c.pos[0] > -track_length)
