@@ -14,6 +14,7 @@ function main() {
   const canvas = document.querySelector('#glcanvas');
   const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
   
+  global_timestamp = 0;
   track_length = 2.0;
   edge_length = 1.0;
   track_depth = 30.0;
@@ -25,7 +26,7 @@ function main() {
   var start_duck = false;
   var keep_jumping = false;
   var spacePressed = false;
-  var tograyscale = 0;
+  toggle_it = false;
   
   wall_img = 'walls.jpg';
   track_img = 'track.jpg'
@@ -33,16 +34,36 @@ function main() {
   coin_img = 'coin1.png';
   sneaker_img = 'sneakers.jpeg';
   jetpack_img = 'jetpack.jpeg';
+  pole_img = 'pole.jpg';
+  center_img = 'center.jpg';
   wall_height = 10;
   last_jetpack = 0;
-  wall_depth = track_depth;
+  wall_depth = 35;
+  pole_ht = 3 * edge_length / 4;
+
+  // 40, 70, 60, 10, 140, 160
+
+  duck_obs = [{ left_pole : new cube(gl, [-track_length / 2, pole_ht / 2, -10], [0.2, pole_ht, 0.2], pole_img, 1),
+  right_pole : new cube(gl, [track_length / 2, pole_ht / 2, -10], [0.2, pole_ht, 0.2], pole_img, 1), 
+  center: new cube(gl, [0, pole_ht + 0.2, -10], [track_length, 0.4, 0.2], center_img, 1)}, 
+  { left_pole : new cube(gl, [-3 * track_length / 2 + 0.2, pole_ht / 2, -70], [0.2, pole_ht, 0.2], pole_img, 1),
+    right_pole : new cube(gl, [-track_length / 2 + 0.2, pole_ht / 2, -70], [0.2, pole_ht, 0.2], pole_img, 1), 
+    center: new cube(gl, [-track_length + 0.2, pole_ht + 0.2, -70], [track_length, 0.4, 0.2], center_img, 1)}];
+
+  jump_obs = [new cube(gl, [track_length, pole_ht / 2, -140], [track_length, pole_ht, 0.2], center_img, 1), 
+  new cube(gl, [0, pole_ht / 2, -160], [track_length, pole_ht, 0.2], center_img, 1)];
+
   walls = [new cube(gl, [-3 * track_length / 2, wall_height / 2, -wall_depth / 2], [0.2, wall_height, wall_depth], wall_img, 1),
   new cube(gl, [+3 * track_length / 2, wall_height / 2, -wall_depth / 2], [0.2, wall_height, wall_depth], wall_img, 1)];
   c = new cube(gl, [0, edge_length / 2, -3], [edge_length, edge_length, 0.0001], player_img, 1);
   tracks = [new cube(gl, [0.0, -0.2, -track_depth / 2], [track_length, 0.2, track_depth], track_img, 1), 
   new cube(gl, [-track_length, -0.2, -track_depth / 2], [track_length, 0.2, track_depth], track_img, 1), 
   new cube(gl, [track_length, -0.2, -track_depth / 2], [track_length, 0.2, track_depth], track_img, 1)];
-  coin = new cube(gl, [0, 0.1, -10], [0.2, 0.2, 0.2], coin_img, 1);
+  coins = [];
+  for(i = 0; i < 20; i++)
+  {
+    coins[coins.length] = new cube(gl, [0, 0.1, -10 - 0.45 * i], [0.2, 0.2, 0.2], coin_img, 1);
+  }
   sneaker = new cube(gl, [-track_length, 0.2, -70], [0.4, 0.4, 0.4], sneaker_img, 1);
   jetpacks = [new cube(gl, [track_length, 0.2, -40], [0.4, 0.4, 0.4], jetpack_img, 1), 
   new cube(gl, [0, 0.2, -100], [0.4, 0.4, 0.4], jetpack_img, 1)];
@@ -77,6 +98,37 @@ function main() {
     }
   `;
 
+  const fsSource_flash_normal = `
+    // varying lowp vec4 vColor;
+
+    varying mediump vec2 vTextureCoord;
+    uniform sampler2D uSampler;
+    precision mediump float;
+
+    void main(void) {
+      // gl_FragColor = vColor;
+      vec4 color = texture2D(uSampler, vTextureCoord);
+      color += vec4(0.1, 0.1, 0.1, 0);
+      gl_FragColor = vec4(vec3(color), 1.0);
+    }
+  `;
+
+  const fsSource_flash_grayscale = `
+    // varying lowp vec4 vColor;
+
+    varying mediump vec2 vTextureCoord;
+    uniform sampler2D uSampler;
+    precision mediump float;
+
+    void main(void) {
+      // gl_FragColor = vColor;
+      vec4 color = texture2D(uSampler, vTextureCoord);
+      color += vec4(0.2, 0.2, 0.2, 0);
+      float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+      gl_FragColor = vec4(vec3(gray), 1.0);
+    }
+  `;
+
   const fsSource_grayscale = `
     // varying lowp vec4 vColor;
 
@@ -91,6 +143,8 @@ function main() {
       gl_FragColor = vec4(vec3(gray), 1.0);
     }
   `;
+
+
   
   // Initialize a shader program; this is where all the lighting
   // for the vertices and so forth is established.
@@ -131,6 +185,43 @@ function main() {
       uSampler: gl.getUniformLocation(shaderProgram_grayscale, 'uSampler'),
     },
   };
+
+  const shaderProgram_flash_normal = initShaderProgram(gl, vsSource, fsSource_flash_normal);
+  
+  // Collect all the info needed to use the shader program.
+  // Look up which attributes our shader program is using
+  // for aVertexPosition, aVevrtexColor and also
+  // look up uniform locations.
+  const programInfo_flash_normal = {
+    program: shaderProgram_flash_normal,
+    attribLocations: {
+      vertexPosition: gl.getAttribLocation(shaderProgram_flash_normal, 'aVertexPosition'),
+      textureCoord: gl.getAttribLocation(shaderProgram_flash_normal, 'aTextureCoord'),
+    },
+    uniformLocations: {
+      projectionMatrix: gl.getUniformLocation(shaderProgram_flash_normal, 'uProjectionMatrix'),
+      modelViewMatrix: gl.getUniformLocation(shaderProgram_flash_normal, 'uModelViewMatrix'),
+      uSampler: gl.getUniformLocation(shaderProgram_flash_normal, 'uSampler'),
+    },
+  };
+
+  const shaderProgram_flash_grayscale = initShaderProgram(gl, vsSource, fsSource_flash_grayscale);
+
+  const programInfo_flash_grayscale = {
+    program: shaderProgram_flash_grayscale,
+    attribLocations: {
+      vertexPosition: gl.getAttribLocation(shaderProgram_flash_grayscale, 'aVertexPosition'),
+      // vertexColor: gl.getAttribLocation(shaderProgram_flash_grayscale, 'aVertexColor'),
+      
+      textureCoord: gl.getAttribLocation(shaderProgram_flash_grayscale, 'aTextureCoord'),
+    },
+    uniformLocations: {
+      projectionMatrix: gl.getUniformLocation(shaderProgram_flash_grayscale, 'uProjectionMatrix'),
+      modelViewMatrix: gl.getUniformLocation(shaderProgram_flash_grayscale, 'uModelViewMatrix'),
+      
+      uSampler: gl.getUniformLocation(shaderProgram_flash_grayscale, 'uSampler'),
+    },
+  };
   
 
   function detect_collision(a, b)
@@ -139,12 +230,25 @@ function main() {
      2 * Math.abs(a.pos[1] - b.pos[1]) < a.dim[1] + b.dim[1] && 
      2 * Math.abs(a.pos[2] - b.pos[2]) < a.dim[2] + b.dim[2]);
   }
+
+  function coins_gen()
+  {
+    for(i = 0; i < coins.length; i++)
+    {
+      coins[i].isdraw = true;
+      coins[i].pos[1] = c.pos[1] + 1;
+      coins[i].pos[2] = c.pos[2] - 5 - 0.45 * i;
+    }
+  }
   // Here's where we call the routine that builds all the
   // objects we'll be drawing.
   //const buffers
   var then = 0;
   // Draw the scene repeatedly
   function render(now) {
+    global_timestamp += 1;
+    global_timestamp %= 40;
+    c.score += 1;
     for(i = 0; i < 3; i++)
       tracks[i].pos[2] -= 0.05;
     c.pos[2] -= 0.05;
@@ -181,6 +285,7 @@ function main() {
       {
         last_jetpack = jetpacks[i].pos[2];
         jetpacks[i].isdraw = false;
+        coins_gen();
         c.ay = 0;
         break;
       }
@@ -190,16 +295,20 @@ function main() {
     {
       c.pos[1] += 0.05;
     }
-    if(last_jetpack - c.pos[2] > 30 && last_jetpack < 0)
+    if(last_jetpack - c.pos[2] > 25 && last_jetpack < 0)
     {
       c.ay = 10;
       last_jetpack = +0;
     }
     // console.log(c.ay);
-    if(tograyscale === 0)
-      drawScene(gl, programInfo, deltaTime);
+    if(!toggle_it)
+    {
+      drawScene(gl, programInfo, programInfo_flash_normal, deltaTime);
+    }
     else
-      drawScene(gl, programInfo_grayscale, deltaTime);
+    {
+      drawScene(gl, programInfo_grayscale, programInfo_flash_grayscale, deltaTime);
+    }
     document.addEventListener('keyup', keyUpHandler, false);
     document.addEventListener('keydown', keyDownHandler, false);
     if(rightPressed && c.pos[0] < track_length)
@@ -242,6 +351,14 @@ function main() {
     }
     if(c.pos[1] < edge_length / 2)
       c.pos[1] = edge_length / 2;
+
+    for(i = 0; i < coins.length; i++)
+      if(detect_collision(coins[i], c))
+      {
+        coins[i].isdraw = false;
+        c.score += 1000;
+      }
+    document.getElementById('score').innerHTML = c.score;
     function keyDownHandler(event) {
       if(event.keyCode == 39) {
         rightPressed = true;
@@ -254,6 +371,10 @@ function main() {
       }
       if (event.keyCode == 40) {
         duck = true;
+      }
+      if(event.keyCode == 71)
+      {
+        toggle_it = true;
       }
     }
     function keyUpHandler(event) {
@@ -271,7 +392,7 @@ function main() {
       }
       if(event.keyCode == 71)
       {
-        tograyscale ^= 1;
+        toggle_it = false;
       }
     }
     
@@ -284,7 +405,7 @@ function main() {
 //
 // Draw the scene.
 //
-function drawScene(gl, programInfo, deltaTime) {
+function drawScene(gl, programInfo, programInfo_flash, deltaTime) {
   gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
   gl.clearDepth(1.0);                 // Clear everything
   gl.enable(gl.DEPTH_TEST);           // Enable depth testing
@@ -341,14 +462,32 @@ function drawScene(gl, programInfo, deltaTime) {
   for(i = 0; i < 3; i++) {
     tracks[i].drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
   }
-  for(i = 0; i < 2; i++)
-    walls[i].drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
+  for(i = 0; i < coins.length; i++) 
+    if(coins[i].isdraw)
+      coins[i].drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
   for(i = 0; i < 2; i++)
     if(jetpacks[i].isdraw)
       jetpacks[i].drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
-  coin.drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
   if(sneaker.isdraw)
     sneaker.drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
+  for(i = 0; i < duck_obs.length; i++)
+  {
+      duck_obs[i].left_pole.drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
+      duck_obs[i].right_pole.drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
+      duck_obs[i].center.drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
+  }
+  if(global_timestamp < 20)
+  {
+      for(i = 0; i < 2; i++)
+        walls[i].drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
+  }
+  else
+  {
+      for(i = 0; i < 2; i++)
+        walls[i].drawCube(gl, viewProjectionMatrix, programInfo_flash, deltaTime);
+  }
+  for(i = 0; i < jump_obs.length; i++)
+    jump_obs[i].drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
   //tracks.drawCube(gl, projectionMatrix, programInfo, deltaTime);
 
 }

@@ -43,6 +43,7 @@ let cube = class {
         this.rotation = 0;
         this.vy = 0;
         this.ay = 10;
+        this.score = 0;
         this.isdraw = true;
         this.dim = [l, b, h];
         function loadTexture(gl, url) {
