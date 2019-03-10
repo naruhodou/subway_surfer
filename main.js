@@ -19,6 +19,7 @@ function main() {
   edge_length = 1.0;
   track_depth = 30.0;
   sneaker_lim = 0;
+  police_se_bachke = 0;
   var jump_limit = 1;
   var rightPressed = false;
   var leftPressed = false;
@@ -36,12 +37,13 @@ function main() {
   jetpack_img = 'jetpack.jpeg';
   pole_img = 'pole.jpg';
   center_img = 'center.jpg';
+  police_img = 'police.jpg';
   wall_height = 10;
   last_jetpack = 0;
   wall_depth = 35;
   pole_ht = 3 * edge_length / 4;
 
-  // 40, 70, 60, 10, 140, 160
+  // 35, 40, 50, 70, 60, 10, 140, 160
 
   duck_obs = [{ left_pole : new cube(gl, [-track_length / 2, pole_ht / 2, -10], [0.2, pole_ht, 0.2], pole_img, 1),
   right_pole : new cube(gl, [track_length / 2, pole_ht / 2, -10], [0.2, pole_ht, 0.2], pole_img, 1), 
@@ -51,7 +53,9 @@ function main() {
     center: new cube(gl, [-track_length + 0.2, pole_ht + 0.2, -70], [track_length, 0.4, 0.2], center_img, 1)}];
 
   jump_obs = [new cube(gl, [track_length, pole_ht / 2, -140], [track_length, pole_ht, 0.2], center_img, 1), 
-  new cube(gl, [0, pole_ht / 2, -160], [track_length, pole_ht, 0.2], center_img, 1)];
+  new cube(gl, [0, pole_ht / 2, -160], [track_length, pole_ht, 0.2], center_img, 1),
+  new cube(gl, [-track_length + 0.2, pole_ht / 2, -50], [track_length, pole_ht, 0.2], center_img, 1), 
+  new cube(gl, [track_length, pole_ht / 2, -35], [track_length, pole_ht, 0.2], center_img, 1) ];
 
   walls = [new cube(gl, [-3 * track_length / 2, wall_height / 2, -wall_depth / 2], [0.2, wall_height, wall_depth], wall_img, 1),
   new cube(gl, [+3 * track_length / 2, wall_height / 2, -wall_depth / 2], [0.2, wall_height, wall_depth], wall_img, 1)];
@@ -67,6 +71,7 @@ function main() {
   sneaker = new cube(gl, [-track_length, 0.2, -70], [0.4, 0.4, 0.4], sneaker_img, 1);
   jetpacks = [new cube(gl, [track_length, 0.2, -40], [0.4, 0.4, 0.4], jetpack_img, 1), 
   new cube(gl, [0, 0.2, -100], [0.4, 0.4, 0.4], jetpack_img, 1)];
+  police = new cube(gl, [c.pos[0], c.pos[1], c.pos[2] + 0.7], [edge_length, edge_length, 0.0001], police_img, 1);
   // If we don't have a GL context, give up now
   
   if (!gl) {
@@ -167,7 +172,6 @@ function main() {
     },
   };
 
-
   const shaderProgram_grayscale = initShaderProgram(gl, vsSource, fsSource_grayscale);
 
   const programInfo_grayscale = {
@@ -248,10 +252,18 @@ function main() {
   function render(now) {
     global_timestamp += 1;
     global_timestamp %= 40;
+    if(police_se_bachke === 0)
+      police.pos[2] = c.pos[2] + 0.7;
+    police_se_bachke += 1;
+    police.isdraw = (police_se_bachke <= 600);
     c.score += 1;
     for(i = 0; i < 3; i++)
       tracks[i].pos[2] -= 0.05;
     c.pos[2] -= 0.05;
+    //police movement
+    police.pos[2] -= 0.04 + 1 / (police_se_bachke * 200);
+    police.pos[1] = c.pos[1];
+    police.pos[0] = c.pos[0];
     //wall movement
     if(c.pos[2] - wall_depth / 2 - 2 < walls[0].pos[2] - wall_depth / 2)
     {
@@ -457,7 +469,8 @@ function drawScene(gl, programInfo, programInfo_flash, deltaTime) {
     var viewProjectionMatrix = mat4.create();
     
     mat4.multiply(viewProjectionMatrix, projectionMatrix, viewMatrix);
-    
+  
+  
   c.drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
   for(i = 0; i < 3; i++) {
     tracks[i].drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
@@ -488,6 +501,8 @@ function drawScene(gl, programInfo, programInfo_flash, deltaTime) {
   }
   for(i = 0; i < jump_obs.length; i++)
     jump_obs[i].drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
+  if(police.isdraw)
+    police.drawCube(gl, viewProjectionMatrix, programInfo, deltaTime);
   //tracks.drawCube(gl, projectionMatrix, programInfo, deltaTime);
 
 }
