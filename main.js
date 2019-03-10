@@ -28,6 +28,7 @@ function main() {
   var keep_jumping = false;
   var spacePressed = false;
   toggle_it = false;
+  gameover_desu = false;
   
   wall_img = 'walls.jpg';
   track_img = 'track.jpg'
@@ -41,7 +42,7 @@ function main() {
   wall_height = 10;
   last_jetpack = 0;
   wall_depth = 35;
-  pole_ht = 3 * edge_length / 4;
+  pole_ht = 3.1 * edge_length / 4;
 
   // 35, 40, 50, 70, 60, 10, 140, 160
 
@@ -66,7 +67,7 @@ function main() {
   coins = [];
   for(i = 0; i < 20; i++)
   {
-    coins[coins.length] = new cube(gl, [0, 0.1, -10 - 0.45 * i], [0.2, 0.2, 0.2], coin_img, 1);
+    coins[coins.length] = new cube(gl, [0, 0.1, -10 - 0.45 * i], [0.4, 0.4, 0.4], coin_img, 1);
   }
   sneaker = new cube(gl, [-track_length, 0.2, -70], [0.4, 0.4, 0.4], sneaker_img, 1);
   jetpacks = [new cube(gl, [track_length, 0.2, -40], [0.4, 0.4, 0.4], jetpack_img, 1), 
@@ -244,6 +245,35 @@ function main() {
       coins[i].pos[2] = c.pos[2] - 5 - 0.45 * i;
     }
   }
+
+  //resets game
+  function reset_game()
+  {
+    gameover_desu = false;
+    coins = [];
+    c.pos = [0, edge_length / 2, -3];
+    if(c.scaling[1] !== 1)
+    {
+      c.scaling[1] = 1;
+      c.dim[1] *= 2;
+      c.pos[1] += edge_length / 4;
+    }
+    walls = [new cube(gl, [-3 * track_length / 2, wall_height / 2, -wall_depth / 2], [0.2, wall_height, wall_depth], wall_img, 1),
+    new cube(gl, [+3 * track_length / 2, wall_height / 2, -wall_depth / 2], [0.2, wall_height, wall_depth], wall_img, 1)];
+    tracks = [new cube(gl, [0.0, -0.2, -track_depth / 2], [track_length, 0.2, track_depth], track_img, 1), 
+    new cube(gl, [-track_length, -0.2, -track_depth / 2], [track_length, 0.2, track_depth], track_img, 1), 
+    new cube(gl, [track_length, -0.2, -track_depth / 2], [track_length, 0.2, track_depth], track_img, 1)];
+    for(i = 0; i < 20; i++)
+    {
+      coins[coins.length] = new cube(gl, [0, 0.1, -10 - 0.45 * i], [0.4, 0.4, 0.4], coin_img, 1);
+    }
+    sneaker.isdraw = true;
+    for(i = 0; i < jetpacks.length; i++)
+      jetpacks[i].isdraw = true;
+    police_se_bachke = 0;
+    last_jetpack = 0;
+    jump_limit = 1;
+  }
   // Here's where we call the routine that builds all the
   // objects we'll be drawing.
   //const buffers
@@ -302,7 +332,7 @@ function main() {
         break;
       }
     }
-    // console.log(c.pos[1]);
+    // console.log(c.pos[2], duck_obs[0].center.pos[2]);
     if(last_jetpack < 0 && Math.abs(c.pos[1] - edge_length / 2) < 1)
     {
       c.pos[1] += 0.05;
@@ -321,6 +351,22 @@ function main() {
     {
       drawScene(gl, programInfo_grayscale, programInfo_flash_grayscale, deltaTime);
     }
+    for(i = 0; i < jump_obs.length; i++)
+    {
+      if(detect_collision(jump_obs[i], c))
+        gameover_desu = true;
+    }
+
+    for(i = 0; i < duck_obs.length; i++)
+    {
+      if(detect_collision(duck_obs[i].right_pole, c) || detect_collision(duck_obs[i].left_pole, c)|| detect_collision(duck_obs[i].center, c))
+        gameover_desu = true;
+    }
+    if(gameover_desu === true)
+    {
+      alert('The score is ' + c.score +  '!');
+      reset_game();
+    }
     document.addEventListener('keyup', keyUpHandler, false);
     document.addEventListener('keydown', keyDownHandler, false);
     if(rightPressed && c.pos[0] < track_length)
@@ -333,6 +379,7 @@ function main() {
       {
         start_duck = true;
         c.scaling[1] = 0.5;
+        c.dim[1] *= 0.5;
         c.pos[1] -= edge_length / 4;
       }
       if(c.ay < 20)
@@ -342,6 +389,7 @@ function main() {
     {
       start_duck = false;
       c.scaling[1] = 1;
+      c.dim[1] *= 2;
       c.pos[1] += edge_length / 4;
       if(c.ay > 20)
         c.ay -= 20;
